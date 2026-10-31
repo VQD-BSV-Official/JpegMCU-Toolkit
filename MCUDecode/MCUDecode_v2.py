@@ -1,4 +1,4 @@
-/*
+"""
  * MCUDecode_v2.py - decompile jpeg image into text form or vice-versa
  * Copyright (C) 2026 Vũ Quang Đại
  *
@@ -16,8 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA
  * or see <http://www.gnu.org/licenses/>
- */
-
+ """
 
 
 
