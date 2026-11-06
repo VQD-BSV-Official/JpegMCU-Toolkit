@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
- * MCUDecode_v3.py - decompile jpeg image into text form or vice-versa
+ * MCUDecode_v2.py - decode JPEG Huffman scan data and log the bit offset of each MCU
  * Copyright (C) 2026 Vũ Quang Đại
  *
  * This program is free software; you can redistribute it and/or modify
@@ -18,6 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA
  * or see <http://www.gnu.org/licenses/>
  """
+
 
 import sys
 import os

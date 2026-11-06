@@ -1,5 +1,6 @@
+#!/usr/bin/env python3
 """
- * MCUDecode_v1.py - decompile jpeg image into text form or vice-versa
+ * MCUDecode_v2.py - decode JPEG Huffman scan data and log the bit offset of each MCU
  * Copyright (C) 2026 Vũ Quang Đại
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,22 +17,10 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111 USA
  * or see <http://www.gnu.org/licenses/>
-"""
+ """
 
 
 
-
-
-#!/usr/bin/env python3
-"""
-decode_mcu.py - Decode MCU (Huffman) của JPEG baseline và ghi log vị trí từng MCU.
-
-Dùng:  python decode_mcu.py anh.jpg [thu_muc_log]
-
-- Ảnh chính  -> Log_MCUs.txt
-- Nếu có thumbnail JPEG trong APP1 (EXIF) -> thêm Log_MCUs_Thumb.txt
-- Offset là số thập phân, tính từ đầu file: <byte>.<bit>  (bit 0 = MSB của byte)
-"""
 import sys
 import os
 import math

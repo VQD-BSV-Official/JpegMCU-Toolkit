@@ -1,0 +1,6 @@
+Lấy dòng MCU cuối ví dụ (303,440)
+Gốc ảnh là 342x456 = 5472x3648 (16x8 pixel)
+
+
+=>> 303 x 16 = 4848 (width) thì lấy 5472 - 4848 = mcu cần shift
+440 x 8 = 3520 thì cắt (height) đi là được
