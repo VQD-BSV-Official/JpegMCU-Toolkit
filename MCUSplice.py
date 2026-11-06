@@ -25,37 +25,25 @@
 
 #!/usr/bin/env python3
 """
-mcus - chèn / xoá MCU trong file JPEG (baseline/extended Huffman)
-mà KHÔNG đổi cấu trúc JPEG (header, bảng DQT/DHT, kích thước, số MCU, DRI giữ nguyên).
+MCUSplice.py - chèn / xoá MCU trong JPEG (baseline/extended Huffman), giữ nguyên cấu trúc
+(header, DQT/DHT, kích thước, số MCU, DRI).
 
-Cách dùng:
-  MCUSplice.py a.jpg ins10                chèn 10 MCU tại MCU (0,0)
-  MCUSplice.py a.jpg del20                xoá 20 MCU bắt đầu từ MCU (0,0)
+Dùng: MCUSplice.py in.jpg [out.jpg] [{ins|del}N][@x,y][@x2,y2] [màu]     (out mặc định: <tên>_out.jpg)
+  ins10                chèn 10 MCU tại (0,0)
+  del20@10,50          xoá 20 MCU từ MCU x=10,y=50
+  ins20@10,50          chèn 20 MCU trước MCU (10,50)
+  del@127,10@142,12    xoá từ MCU (127,10) đến (142,12), gồm cả MCU cuối
 
-  MCUSplice.py a.jpg ins20@10,50          tại MCU x=10,y=50: chèn 20 MCU TRƯỚC MCU này
-  MCUSplice.py a.jpg del20@10,50          tại MCU x=10,y=50: xoá 20 MCU (tính từ MCU này)
-  
-  MCUSplice.py a.jpg out.jpg ins10        file xuất là tham số thứ 2 (def: <tên>_out.jpg)
-  Chỉnh màu (tuỳ chọn, đặt sau ins/del):
-    y30 cb-20 cr15     TƯƠNG ĐỐI: cộng vào DC (mức pixel; số không dấu cũng là cộng)
-    ycc128,0,0         TUYỆT ĐỐI: Y=128 (xám), Cb=0, Cr=0 (trung tính); `_` = bỏ qua kênh
-  ins: chỉnh đúng N MCU vừa chèn (nền = DC của MCU đứng trước)
-  del: chỉnh N MCU ngay sau vùng xoá (giữ AC, chỉ đổi DC)
-  Không ins/del = chỉ chỉnh màu từ @x,y (mặc định @0,0) đến hết ảnh. VD: a.jpg y30 @10,50 | a.jpg cb-10
 
-Log_MCUs.txt (cùng thư mục với file vào):
-  - ins/del (không kèm chỉnh màu): nếu chưa có log hợp lệ -> tự chạy MCUDecode.py <file>;
-    sau đó cắt/chèn thẳng đoạn bit của MCU theo offset trong log, không giải mã lại.
-    DC mã hoá vi phân nên các MCU sau điểm cắt có thể lệch màu đến RST kế tiếp (hoặc hết ảnh nếu DRI=0).
-  - Có chỉnh màu (y/cb/cr/ycc): vẫn dùng đường giải mã + mã hoá lại DC như cũ.
+  Chỉnh màu: y30 cb-20 cr15 = cộng vào DC (mức pixel); ycc128,0,0 = đặt tuyệt đối (`_` = bỏ qua kênh)
+    ins: chỉnh N MCU vừa chèn | del: chỉnh N MCU sau vùng xoá | không ins/del: chỉnh từ @x,y (mặc định 0,0) đến hết ảnh
 
-Quy ước để giữ nguyên cấu trúc:
-  - Tổng số MCU không đổi. insert  => phần đuôi bị đẩy ra ngoài và bị cắt bỏ.
-                           delete  => phần đuôi được bù bằng MCU trung tính.
-  - MCU chèn vào / MCU bù: mọi block có DC diff = 0 và AC = EOB (phẳng, giữ mức DC trước đó).
-  - Thứ tự MCU tính theo raster: index = y * số_MCU_mỗi_hàng + x.
-  - Các block AC được copy nguyên bit; chỉ mã hoá lại DC diff (vì DC mã hoá vi phân).
-  - Restart marker (RSTn) được dựng lại theo DRI cũ.
+Log_MCUs.txt (cùng thư mục file vào): ins/del không kèm màu cắt bit theo log; chưa có/không khớp thì tự chạy MCUDecode.py.
+  DC mã hoá vi phân nên MCU sau điểm cắt lệch màu đến RST kế tiếp (hết ảnh nếu DRI=0).
+  Có chỉnh màu thì giải mã + mã hoá lại DC (AC copy nguyên bit).
+
+Quy ước: MCU đánh số raster (index = y * MCU_mỗi_hàng + x); tổng số MCU không đổi.
+  ins cắt phần đuôi, del bù đuôi bằng MCU trung tính (DC diff = 0, AC = EOB); RSTn dựng lại theo DRI cũ.
 """
 import argparse
 import os
@@ -360,7 +348,7 @@ def rebuild_chunks(chunks, ri, neutral):
 
 
 # ------------------------------------------------------------------- main
-def process(data, x, y, action, n, adj, src):
+def process(data, x, y, action, n, adj, src, end=None):
     (W, H, comps), huff, dri, sos, scan_start, q0 = parse_jpeg(data)
     nf = len(comps)
     if len(sos) != nf:
@@ -405,6 +393,12 @@ def process(data, x, y, action, n, adj, src):
     if not (0 <= x < mx and 0 <= y < my):
         raise JpegError(f"MCU ({x},{y}) out of range (x<{mx}, y<{my})")
     idx = y * mx + x
+    if end:                                           # del@x1,y1@x2,y2: xoá đến hết MCU (x2,y2)
+        if not (0 <= end[0] < mx and 0 <= end[1] < my):
+            raise JpegError(f"MCU {end} out of range (x<{mx}, y<{my})")
+        n = end[1] * mx + end[0] - idx + 1
+        if n < 1:
+            raise JpegError("End MCU is before start MCU")
 
     # tách scan
     m = END_OF_SCAN.search(data, scan_start)
@@ -488,7 +482,7 @@ def process(data, x, y, action, n, adj, src):
     return data[:scan_start] + new_scan + tail
 
 
-ARG_RE = re.compile(r'^(?:(ins|del)(\d*))?(?:@(\d+),(\d+))?$', re.I)
+ARG_RE = re.compile(r'^(?:(ins|del)(\d*))?(?:@(\d+),(\d+))?(?:@(\d+),(\d+))?$', re.I)
 CH_RE = re.compile(r'^(y|cb|cr)([+-]?\d+)$', re.I)
 YCC_RE = re.compile(r'^ycc(_|[+-]?\d+),(_|[+-]?\d+),(_|[+-]?\d+)$', re.I)
 CH = {'y': 0, 'cb': 1, 'cr': 2}
@@ -496,15 +490,19 @@ CH = {'y': 0, 'cb': 1, 'cr': 2}
 
 def main():
     ap = argparse.ArgumentParser(description="Insert/delete MCU in a JPEG, keeping its structure",
-                                 usage="%(prog)s in.jpg [out.jpg] [{ins|del}N][@x,y] [yV] [cbV] [crV] [yccY,Cb,Cr]")
+                                 usage="%(prog)s in.jpg [out.jpg] [{ins|del}N][@x,y][@x2,y2] [yV] [cbV] [crV] [yccY,Cb,Cr]")
     ap.add_argument('args', nargs='+')
-    files, action, n, x, y, adj = [], None, 1, 0, 0, {}
+    files, action, n, x, y, adj, end = [], None, 1, 0, 0, {}, None
     for t in ap.parse_args().args:
         if t and (m := ARG_RE.match(t)):
             if m[1]:
                 action, n = ('insert' if m[1].lower() == 'ins' else 'delete'), int(m[2] or 1)
             if m[3]:
                 x, y = int(m[3]), int(m[4])
+            if m[5]:
+                if not (m[1] and m[1].lower() == 'del' and not m[2] and m[3]):
+                    ap.error("Range syntax: del@x1,y1@x2,y2")
+                end = (int(m[5]), int(m[6]))
         elif m := CH_RE.match(t):
             adj[CH[m[1].lower()]] = (False, int(m[2]))
         elif m := YCC_RE.match(t):
@@ -516,7 +514,7 @@ def main():
 
     data = open(files[0], 'rb').read()
     try:
-        out = process(data, x, y, action, n, adj, files[0])
+        out = process(data, x, y, action, n, adj, files[0], end)
     except JpegError as e:
         sys.exit(f"Error: {e}")
     path = files[1] if len(files) > 1 else '{}_out{}'.format(*os.path.splitext(files[0]))
