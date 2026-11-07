@@ -29,9 +29,9 @@ from bisect import bisect_left
 
 
 USAGE = """\
-Usage: MCUDecode.py image.jpg [log_dir] [--adv]
+Usage: MCUDecode.py image.jpg [--adv]
 
-Writes Log_MCUs.txt (main image) and Log_MCUs_Thumb.txt (EXIF thumbnail, if any).
+Writes Log_MCUs.txt (main image) and Log_MCUs_Thumb.txt (EXIF thumbnail, if any) next to the image.
 Offsets are <byte>.<bit> from the start of the file (bit 0 = MSB).
 --adv: keep decoding MCUs until FFD9, ignoring the header size.
 """
@@ -303,34 +303,22 @@ def parse_jpeg(data, start, end, log_path, find_thumb=True, adv=False):
 
 
 def main():
-    args = sys.argv[1:]
-    adv = "--adv" in args
-    args = [a for a in args if a != "--adv"]
+    adv = "--adv" in sys.argv
+    args = [a for a in sys.argv[1:] if a != "--adv"]
     if not args:
-        print(USAGE)
-        sys.exit(1)
-    path = args[0]
-    outdir = args[1] if len(args) > 1 else os.path.dirname(os.path.abspath(path))
-    with open(path, "rb") as f:
+        sys.exit(USAGE)
+    with open(args[0], "rb") as f:
         data = f.read()
-
+    d = os.path.dirname(os.path.abspath(args[0]))
+    log, tlog = os.path.join(d, "Log_MCUs.txt"), os.path.join(d, "Log_MCUs_Thumb.txt")
     t0 = time.perf_counter()
-    main_log = os.path.join(outdir, "Log_MCUs.txt")
-    logs = [main_log]
     try:
-        thumb = parse_jpeg(data, 0, len(data), main_log, True, adv)
+        thumb = parse_jpeg(data, 0, len(data), log, True, adv)
+        if thumb:
+            parse_jpeg(data, *thumb, tlog, False, adv)
     except JpegError as e:
-        print("Error:", e)
-        sys.exit(2)
-
-    if thumb:
-        thumb_log = os.path.join(outdir, "Log_MCUs_Thumb.txt")
-        try:
-            parse_jpeg(data, thumb[0], thumb[1], thumb_log, False, adv)
-            logs.append(thumb_log)
-        except JpegError as e:
-            print("Thumbnail error:", e)
-    print(f"Wrote {', '.join(logs)} ({time.perf_counter() - t0:.2f}s)")
+        sys.exit(f"Error: {e}")
+    print(f"Wrote {log}{', ' + tlog if thumb else ''} ({time.perf_counter() - t0:.2f}s)")
 
 
 if __name__ == "__main__":
