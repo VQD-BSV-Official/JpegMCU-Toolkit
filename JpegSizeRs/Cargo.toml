@@ -1,0 +1,12 @@
+[package]
+name = "jpeg_size"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rustfft = "6"
+
+[profile.release]
+opt-level = 3
+# NOTE: keep panic = "unwind" (the default). The code relies on catching panics
+# in the same places where the C# version caught exceptions.
