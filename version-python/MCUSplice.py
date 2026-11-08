@@ -38,7 +38,7 @@ Dùng: MCUSplice.py in.jpg [out.jpg] [{ins|del}N][@x,y][@x2,y2] [màu]     (out 
   Chỉnh màu: y30 cb-20 cr15 = cộng vào DC (mức pixel); ycc128,0,0 = đặt tuyệt đối (`_` = bỏ qua kênh)
     ins: chỉnh N MCU vừa chèn | del: chỉnh N MCU sau vùng xoá | không ins/del: chỉnh từ @x,y (mặc định 0,0) đến hết ảnh
 
-Log_MCUs.txt (cùng thư mục file vào): ins/del không kèm màu cắt bit theo log; chưa có/không khớp thì tự chạy MCUDecode.py.
+Log_MCUs.txt (cùng thư mục file vào): ins/del không kèm màu cắt bit theo log; chưa có/không khớp thì báo lỗi (cần chạy MCUDecode.py trước).
   DC mã hoá vi phân nên MCU sau điểm cắt lệch màu đến RST kế tiếp (hết ảnh nếu DRI=0).
   Có chỉnh màu thì giải mã + mã hoá lại DC (AC copy nguyên bit).
 
@@ -49,7 +49,6 @@ import argparse
 import os
 import re
 import struct
-import subprocess
 import sys
 from bisect import bisect_left
 
@@ -267,16 +266,10 @@ def read_log(path, hdr, first):
 
 
 def get_offs(src, mx, my, total, scan_start):
-    here = os.path.dirname(os.path.abspath(__file__))
     log = os.path.join(os.path.dirname(os.path.abspath(src)), 'Log_MCUs.txt')
-    args = (log, f'//[{mx}x{my}={total} MCU]', scan_start * 8)
-    offs = read_log(*args)
+    offs = read_log(log, f'//[{mx}x{my}={total} MCU]', scan_start * 8)
     if offs is None:
-        print("No valid Log_MCUs.txt, running MCUDecode.py")
-        if subprocess.run([sys.executable, os.path.join(here, 'MCUDecode.py'), src], capture_output=True).returncode:
-            raise JpegError("MCUDecode.py failed")
-        if (offs := read_log(*args)) is None:
-            raise JpegError("Log_MCUs.txt does not match the file")
+        raise JpegError("Log_MCUs.txt missing or does not match the file (run MCUDecode first)")
     return offs
 
 
