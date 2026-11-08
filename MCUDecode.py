@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
- * MCUDecode_v2.py - decode JPEG Huffman scan data and log the bit offset of each MCU
+ * MCUDecode.py - decode JPEG Huffman scan data and log the bit offset of each MCU
  * Copyright (C) 2026 Vũ Quang Đại
  *
  * This program is free software; you can redistribute it and/or modify
