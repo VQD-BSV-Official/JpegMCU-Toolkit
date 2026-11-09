@@ -1,5 +1,5 @@
 // mcudecode.rs - port của MCUDecode.py (GPL v2+), chỉ dùng std
-// Build: rustc -C opt-level=3 -C target-cpu=native mcudecode.rs
+// Build: rustc -C opt-level=3 -C strip=symbols -C panic=abort -C lto=fat -C codegen-units=1 mcudecode.rs
 
 use std::collections::HashMap;
 use std::fmt::Write as _;
