@@ -1,0 +1,13 @@
+[package]
+name = "jpeg_recovery"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rustfft = "6"
+image = { version = "=0.24.9", default-features = false, features = ["jpeg"] }
+
+[profile.release]
+opt-level = 3
+# NOTE: keep panic = "unwind" (the default). The code relies on catching panics
+# in the same places where the C# version caught exceptions.
